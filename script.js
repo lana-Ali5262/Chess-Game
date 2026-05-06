@@ -1,19 +1,15 @@
-// Wait for the DOM to be fully loaded before executing code
 document.addEventListener('DOMContentLoaded', () => {
     let board = null;
     const game = new Chess();
     const moveHistory = document.getElementById('move-history');
     let moveCount = 1;
     let userColor = 'w';
-    let gameMode = null; // 'computer' or 'friend'
-
-    // Touch/tap-to-move state
+    let gameMode = null;
     let selectedSquare = null;
 
     const modeScreen = document.getElementById('mode-screen');
     const gameScreen = document.getElementById('game-screen');
 
-    // vs Computer button
     document.querySelector('.vs-computer').addEventListener('click', () => {
         gameMode = 'computer';
         modeScreen.style.display = 'none';
@@ -21,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
         initBoard();
     });
 
-    // vs Friend button
     document.querySelector('.vs-friend').addEventListener('click', () => {
         gameMode = 'friend';
         modeScreen.style.display = 'none';
@@ -29,18 +24,15 @@ document.addEventListener('DOMContentLoaded', () => {
         initBoard();
     });
 
-    // Function to initialize the board
     const initBoard = () => {
-        if (board) {
-            board.destroy();
-        }
+        if (board) board.destroy();
         game.reset();
         moveHistory.textContent = '';
         moveCount = 1;
         userColor = 'w';
         selectedSquare = null;
 
-        const boardConfig = {
+        board = Chessboard('board', {
             showNotation: true,
             draggable: true,
             position: 'start',
@@ -51,30 +43,31 @@ document.addEventListener('DOMContentLoaded', () => {
             moveSpeed: 'fast',
             snapBackSpeed: 500,
             snapSpeed: 100,
-        };
-        board = Chessboard('board', boardConfig);
+        });
 
-        // Attach touch/click handlers after board is created
-        attachTapToMove();
+        attachTouchHandlers();
     };
 
-    // ── Tap-to-move (mobile fix) ──────────────────────────────────────────────
-    const attachTapToMove = () => {
+    // Block page scroll while touching the board
+    const attachTouchHandlers = () => {
         const boardEl = document.getElementById('board');
 
-        // Use 'touchend' for mobile, 'click' as fallback for desktop
-        boardEl.addEventListener('touchend', handleSquareTap, { passive: false });
-        boardEl.addEventListener('click', handleSquareTap);
+        boardEl.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        boardEl.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        boardEl.addEventListener('touchend', handleTap, { passive: false });
     };
 
-    const getSquareFromEvent = (e) => {
-        // For touch events, use changedTouches
-        const touch = e.changedTouches ? e.changedTouches[0] : e;
-        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-        if (!target) return null;
-
-        // chessboard.js marks squares with data-square attribute
-        const squareEl = target.closest('[data-square]');
+    // Tap-to-move logic
+    const getSquareFromTouch = (e) => {
+        const touch = e.changedTouches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const squareEl = el && el.closest('[data-square]');
         return squareEl ? squareEl.getAttribute('data-square') : null;
     };
 
@@ -82,105 +75,83 @@ document.addEventListener('DOMContentLoaded', () => {
         const piece = game.get(square);
         if (!piece) return false;
         if (gameMode === 'computer') return piece.color === userColor;
-        // vs friend: whoever's turn it is
         return piece.color === game.turn();
     };
 
     const clearHighlights = () => {
         document.querySelectorAll('[data-square]').forEach(el => {
             el.style.removeProperty('background');
-            el.style.removeProperty('border-radius');
             el.style.removeProperty('box-shadow');
+            el.style.removeProperty('border-radius');
         });
     };
 
-    const highlightSquare = (square) => {
+    const highlightSelected = (square) => {
         const el = document.querySelector(`[data-square="${square}"]`);
-        if (el) {
-            el.style.background = 'radial-gradient(circle, rgba(20,85,30,0.5) 36%, transparent 40%)';
-        }
+        if (el) el.style.background = 'rgba(20, 85, 30, 0.5)';
     };
 
-    const highlightLegalMoves = (square) => {
-        const moves = game.moves({ square, verbose: true });
-        moves.forEach(m => {
+    const highlightMoves = (square) => {
+        game.moves({ square, verbose: true }).forEach(m => {
             const el = document.querySelector(`[data-square="${m.to}"]`);
-            if (el) {
-                const hasPiece = game.get(m.to);
-                if (hasPiece) {
-                    // Ring highlight for captures
-                    el.style.boxShadow = 'inset 0 0 0 4px rgba(20,85,30,0.6)';
-                    el.style.borderRadius = '0';
-                } else {
-                    // Dot highlight for empty squares
-                    el.style.background = 'radial-gradient(circle, rgba(20,85,30,0.5) 36%, transparent 40%)';
-                }
+            if (!el) return;
+            if (game.get(m.to)) {
+                el.style.boxShadow = 'inset 0 0 0 4px rgba(20,85,30,0.7)';
+            } else {
+                el.style.background = 'radial-gradient(circle, rgba(20,85,30,0.5) 36%, transparent 40%)';
             }
         });
     };
 
-    const handleSquareTap = (e) => {
-        // Prevent the event from firing twice (touchend + click)
-        if (e.type === 'click' && e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
-        if (e.cancelable) e.preventDefault();
-
+    const handleTap = (e) => {
+        e.preventDefault();
         if (game.game_over()) return;
-
-        // Block moves when it's the computer's turn
         if (gameMode === 'computer' && game.turn() !== userColor) return;
 
-        const square = getSquareFromEvent(e);
+        const square = getSquareFromTouch(e);
         if (!square) return;
 
         if (selectedSquare) {
             if (square === selectedSquare) {
-                // Tapped same square: deselect
                 clearHighlights();
                 selectedSquare = null;
                 return;
             }
 
-            // Try to make the move
             const move = game.move({ from: selectedSquare, to: square, promotion: 'q' });
+            clearHighlights();
 
             if (move) {
                 board.position(game.fen());
-                clearHighlights();
                 selectedSquare = null;
                 recordMove(move.san, moveCount);
                 moveCount++;
                 checkGameOver();
                 if (gameMode === 'computer' && !game.game_over()) {
-                    window.setTimeout(makeRandomMove, 250);
+                    setTimeout(makeRandomMove, 250);
                 }
             } else {
-                // Invalid move — check if tapped a different own piece
-                clearHighlights();
                 if (isMyPiece(square)) {
                     selectedSquare = square;
-                    highlightSquare(square);
-                    highlightLegalMoves(square);
+                    highlightSelected(square);
+                    highlightMoves(square);
                 } else {
                     selectedSquare = null;
                 }
             }
         } else {
-            // No piece selected yet
             if (isMyPiece(square)) {
                 selectedSquare = square;
-                highlightSquare(square);
-                highlightLegalMoves(square);
+                highlightSelected(square);
+                highlightMoves(square);
             }
         }
     };
-    // ─────────────────────────────────────────────────────────────────────────
 
-    // Function to make a random move for the computer
     const makeRandomMove = () => {
         const possibleMoves = game.moves();
         if (game.game_over()) return;
-        const randomIdx = Math.floor(Math.random() * possibleMoves.length);
-        const move = possibleMoves[randomIdx];
+        const move = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
         game.move(move);
         board.position(game.fen());
         recordMove(move, moveCount);
@@ -188,35 +159,29 @@ document.addEventListener('DOMContentLoaded', () => {
         checkGameOver();
     };
 
-    // Function to record and display a move in the move history
     const recordMove = (move, count) => {
-        const formattedMove = count % 2 === 1 ? `${Math.ceil(count / 2)}. ${move}` : `${move} -`;
-        moveHistory.textContent += formattedMove + ' ';
+        const formatted = count % 2 === 1 ? `${Math.ceil(count / 2)}. ${move}` : `${move} -`;
+        moveHistory.textContent += formatted + ' ';
         moveHistory.scrollTop = moveHistory.scrollHeight;
     };
 
-    // Check if game is over
     const checkGameOver = () => {
-        if (game.game_over()) {
-            if (game.in_checkmate()) {
-                const winner = game.turn() === 'w' ? 'Black' : 'White';
-                setTimeout(() => alert(`Checkmate! ${winner} wins!`), 100);
-            } else if (game.in_draw()) {
-                setTimeout(() => alert("It's a draw!"), 100);
-            } else if (game.in_stalemate()) {
-                setTimeout(() => alert("Stalemate!"), 100);
-            }
+        if (!game.game_over()) return;
+        if (game.in_checkmate()) {
+            const winner = game.turn() === 'w' ? 'Black' : 'White';
+            setTimeout(() => alert(`Checkmate! ${winner} wins!`), 100);
+        } else if (game.in_draw()) {
+            setTimeout(() => alert("It's a draw!"), 100);
+        } else if (game.in_stalemate()) {
+            setTimeout(() => alert("Stalemate!"), 100);
         }
     };
 
     const onDragStart = (source, piece) => {
         if (game.game_over()) return false;
-        if (gameMode === 'computer') {
-            return piece.search(userColor) === 0;
-        } else {
-            return (game.turn() === 'w' && piece.search(/^w/) !== -1) ||
-                (game.turn() === 'b' && piece.search(/^b/) !== -1);
-        }
+        if (gameMode === 'computer') return piece.search(userColor) === 0;
+        return (game.turn() === 'w' && piece.search(/^w/) !== -1) ||
+               (game.turn() === 'b' && piece.search(/^b/) !== -1);
     };
 
     const onDrop = (source, target) => {
@@ -228,13 +193,12 @@ document.addEventListener('DOMContentLoaded', () => {
         moveCount++;
         checkGameOver();
         if (gameMode === 'computer' && !game.game_over()) {
-            window.setTimeout(makeRandomMove, 250);
+            setTimeout(makeRandomMove, 250);
         }
     };
 
     const onSnapEnd = () => { board.position(game.fen()); };
 
-    // Play Again button
     document.querySelector('.play-again').addEventListener('click', () => {
         game.reset();
         board.start();
@@ -245,7 +209,6 @@ document.addEventListener('DOMContentLoaded', () => {
         clearHighlights();
     });
 
-    // Set Position button
     document.querySelector('.set-pos').addEventListener('click', () => {
         const fen = prompt("Enter the FEN notation for the desired position!");
         if (fen !== null) {
@@ -262,7 +225,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Flip Board button
     document.querySelector('.flip-board').addEventListener('click', () => {
         board.flip();
         if (gameMode === 'computer') {
@@ -271,7 +233,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Change Mode button
     document.querySelector('.change-mode').addEventListener('click', () => {
         game.reset();
         moveHistory.textContent = '';
