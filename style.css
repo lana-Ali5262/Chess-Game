@@ -34,6 +34,17 @@ h1 {
 .board {
   width: 400px;
   margin: 20px auto;
+  /* Prevent page scroll while touching the board */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Also block scroll on all child elements inside the board */
+#board * {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .buttons {
