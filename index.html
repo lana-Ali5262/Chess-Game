@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Chess Game</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
@@ -11,11 +11,10 @@
 
 <body>
     <div class="container">
-        <h1>Chess Game</h1>
-
         <!-- Mode Selection Screen -->
         <div id="mode-screen">
-            <p>Choose your game mode to start playing!</p>
+            <h1>♟️ SMART CHESS ♞</h1>
+            <p>⚡ choose your challenger</p>
             <div class="mode-buttons">
                 <button class="mode-btn vs-computer">
                     <span>🤖</span>
@@ -30,17 +29,53 @@
 
         <!-- Game Screen -->
         <div id="game-screen">
+            <h1>⚔️ CHESS Game ⚔️</h1>
             <div id="board" class="board"></div>
-            <div class="buttons">
-                <button class="play-again">Play Again</button>
-                <button class="set-pos">Set Position</button>
-                <button class="flip-board">Flip Board</button>
-                <button class="change-mode">Change Mode</button>
+
+            <!-- Difficulty selector -->
+            <div id="difficulty-container" class="difficulty-selector" style="display: none;">
+                <label>🎚️ AI SKILL:</label>
+                <select id="difficulty-select">
+                    <option value="harmless">🪶 Harmless (very easy)</option>
+                    <option value="easy">🌱 Easy</option>
+                    <option value="medium" selected>⚖️ Medium</option>
+                    <option value="hard">⛰️ Hard</option>
+                    <option value="expert">🎓 Expert</option>
+                    <option value="master">👑 Master</option>
+                </select>
             </div>
+
+            <div id="thinking-indicator" class="thinking-badge" style="display: none;">🤖 AI is calculating... 🤖</div>
+
+            <div class="buttons">
+                <button class="play-again">🔄 New Game</button>
+                <button class="set-pos">📂 Set Position</button>
+                <button class="flip-board">🪞 Flip Board</button>
+                <button class="change-mode">🏠 Change Mode</button>
+            </div>
+
+            <!-- Move History -->
             <div id="move-history" class="move-history"></div>
+
+            <!-- Points Display - Added BELOW move history -->
+            <div class="points-container">
+                <div class="points-box">
+                    <h3>🏆 MATERIAL COUNT 🏆</h3>
+                    <div class="points-row">
+                        <div class="player-points white-points">
+                            <span class="piece-icon">♔</span> White: <span id="white-points">0</span>
+                        </div>
+                        <div class="player-points black-points">
+                            <span class="piece-icon">♚</span> Black: <span id="black-points">0</span>
+                        </div>
+                    </div>
+                    <div class="advantage" id="advantage"></div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
     <script src="https://unpkg.com/chess.js@0.10.3/chess.js"></script>
